@@ -1,0 +1,22 @@
+﻿<Window x:Class="AccessManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Система управления доступами" Height="750" Width="1000"
+        Background="{StaticResource BackgroundColor}">
+    <DockPanel>
+        <!-- Верхнее меню -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="{StaticResource PrimaryColor}" Height="60">
+            <TextBlock Text="Система управления доступами" FontSize="22" VerticalAlignment="Center" Margin="20,0,0,0" Foreground="Black"/>
+        </StackPanel>
+
+        <!-- Навигация слева -->
+        <StackPanel DockPanel.Dock="Left" Width="200" Background="#F0FFF0" Margin="0,0,2,0">
+            <Button Content="Форма заявки" Command="{Binding NavigateToRequestFormCommand}" Margin="10"/>
+            <Button Content="Согласование" Command="{Binding NavigateToApprovalViewCommand}" Margin="10"/>
+            <Button Content="Очередь ОИТ" Command="{Binding NavigateToOITQueueViewCommand}" Margin="10"/>
+        </StackPanel>
+
+        <!-- Основная область -->
+        <Frame x:Name="MainFrame" NavigationUIVisibility="Hidden"/>
+    </DockPanel>
+</Window>

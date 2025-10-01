@@ -1,0 +1,29 @@
+﻿<Page x:Class="AccessManager.Views.OITQueue"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:AccessManager.Views"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="OITQueue" Background="{StaticResource BackgroundColor}">
+    <StackPanel Margin="20">
+        <TextBlock Text="Очередь задач ОИТ" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+        <ListView ItemsSource="{Binding OITTasks}" Height="500">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding ApplicantFullName}" Width="200"/>
+                    <GridViewColumn Header="Ресурсы" DisplayMemberBinding="{Binding ResourceNames}" Width="300"/>
+                    <GridViewColumn Header="Действие" DisplayMemberBinding="{Binding Action}" Width="100"/>
+                    <GridViewColumn Header="Срок" DisplayMemberBinding="{Binding TemporaryUntil}" Width="120"/>
+                    <GridViewColumn Header="Статус" DisplayMemberBinding="{Binding Status}" Width="100"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Выполнить" Command="{Binding ExecuteTaskCommand}" Margin="0,0,10,0"/>
+            <Button Content="Обновить" Command="{Binding RefreshCommand}"/>
+        </StackPanel>
+    </StackPanel>
+</Page>
