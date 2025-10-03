@@ -2,15 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Collections.ObjectModel;
-using System.Linq;
-using AccessManager.Services;
-
 using System.Threading.Tasks;
 
 namespace AccessManager.ViewModels
 {
-    public class RequestFormViewModel : BaseViewModel
+    internal class RelayCommand
     {
     }
 }
