@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Principal;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -16,9 +17,24 @@ namespace AccessManager
     /// </summary>
     public partial class MainWindow : Window
     {
+
+
         public MainWindow()
         {
             InitializeComponent();
+
+            openForm();
+
+        }
+        public void openForm()
+        {
+            MainFrame.Navigate(new Views.RequestFormVIew());
+        }
+
+        public void Authorization()
+        {
+            string currentUser = WindowsIdentity.GetCurrent().Name;
+            aut.Text = currentUser;
         }
     }
 }

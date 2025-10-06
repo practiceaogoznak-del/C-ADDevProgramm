@@ -11,41 +11,70 @@ namespace AccessManager.Services
 {
     public class ActiveDirectoryHelper
     {
-        private readonly DirectoryEntry _rootEntry;
+        private readonly string _ldapPath;
 
-        public ActiveDirectoryHelper(string ldapPath, string username = null, string password = null)
+        public ActiveDirectoryHelper(string ldapPath)
         {
-            _rootEntry = string.IsNullOrEmpty(username)
-                ? new DirectoryEntry(ldapPath)
-                : new DirectoryEntry(ldapPath, username, password);
+            _ldapPath = ldapPath;
         }
 
-        public List<AdObjectInfo> GetResources(string objectClass = "group")
+        /// <summary>
+        /// Получает список объектов указанного типа (group, computer, user и т.п.)
+        /// </summary>
+        public List<AdObjectInfo> GetResources(string objectCategory)
         {
-            var list = new List<AdObjectInfo>();
+            var results = new List<AdObjectInfo>();
 
-            using (var searcher = new DirectorySearcher(_rootEntry))
+            try
             {
-                searcher.Filter = $"(objectClass={objectClass})";
-                searcher.PropertiesToLoad.Add("distinguishedName");
-                searcher.PropertiesToLoad.Add("cn");
-                searcher.PropertiesToLoad.Add("name");
-                searcher.PropertiesToLoad.Add("description");
-                searcher.SearchScope = SearchScope.Subtree;
-
-                foreach (SearchResult res in searcher.FindAll())
+                using (var entry = new DirectoryEntry(_ldapPath))
+                using (var searcher = new DirectorySearcher(entry))
                 {
-                    list.Add(new AdObjectInfo
+                    searcher.Filter = $"(objectCategory={objectCategory})";
+                    searcher.PropertiesToLoad.AddRange(new[]
                     {
-                        DistinguishedName = res.Properties["distinguishedName"]?.Count > 0 ? res.Properties["distinguishedName"][0].ToString() : null,
-                        CommonName = res.Properties["cn"]?.Count > 0 ? res.Properties["cn"][0].ToString() : null,
-                        Name = res.Properties["name"]?.Count > 0 ? res.Properties["name"][0].ToString() : null,
-                        Description = res.Properties["description"]?.Count > 0 ? res.Properties["description"][0].ToString() : null,
+                        "cn",
+                        "name",
+                        "description",
+                        "displayName",
+                        "mail",
+                        "telephoneNumber",
+                        "employeeID"
                     });
+                    searcher.SizeLimit = 500;
+                    searcher.PageSize = 500;
+
+                    foreach (SearchResult result in searcher.FindAll())
+                    {
+                        var info = new AdObjectInfo
+                        {
+                            Name = GetProp(result, "name"),
+                            DisplayName = GetProp(result, "displayName"),
+                            Description = GetProp(result, "description"),
+                            Email = GetProp(result, "mail"),
+                            Telephone = GetProp(result, "telephoneNumber"),
+                            EmployeeId = GetProp(result, "employeeID"),
+                            DistinguishedName = GetProp(result, "distinguishedName")
+                        };
+
+                        results.Add(info);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                // Можно добавить логирование, чтобы не падало приложение
+                System.Diagnostics.Debug.WriteLine("Ошибка AD: " + ex.Message);
+            }
 
-            return list;
+            return results;
+        }
+
+        private string GetProp(SearchResult result, string prop)
+        {
+            return result.Properties.Contains(prop)
+                ? result.Properties[prop][0]?.ToString()
+                : string.Empty;
         }
     }
 }
