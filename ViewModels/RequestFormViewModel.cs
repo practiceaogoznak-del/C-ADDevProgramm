@@ -9,6 +9,7 @@ using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using AccessManager.Services;
 using AccessManager.Classes;
+using System.Windows;
 
 namespace AccessManager.ViewModels
 {
@@ -146,11 +147,28 @@ namespace AccessManager.ViewModels
             SelectedRequestItems = new ObservableCollection<ResourceRequestItem>();
             AvailableWorkstations = new ObservableCollection<AdObjectInfo>();
 
-            // Загружаем данные
-            LoadUserInfoFromAD();
-            LoadAdData();
+            if (_adHelper.IsConnected())
+            {
+                LoadUserInfoFromAD();
+                LoadAdData();
+            }
+            else
+            {
+                MessageBox.Show(
+                    "Не удалось подключиться к Active Directory.\n" +
+                    "Проверьте сетевое соединение или подключение к домену.",
+                    "Ошибка LDAP подключения",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
 
-            // Команды
+                // fallback-заполнение локальными данными
+                ApplicantFullName = Environment.UserName;
+                Position = "Локальный пользователь";
+                ContactPhone = "—";
+                ApplicantTabNumber = "—";
+            }
+
             SaveDraftCommand = new RelayCommand(_ => SaveDraft(), _ => CanSaveDraft());
             SubmitCommand = new RelayCommand(_ => Submit(), _ => CanSubmit());
         }
@@ -175,17 +193,24 @@ namespace AccessManager.ViewModels
         {
             try
             {
-                // Загрузка групп (ресурсы)
+                // Загружаем все ресурсы
                 var groups = _adHelper.GetResources("group");
                 _allResources = new ObservableCollection<AdObjectInfo>(groups);
                 ResourceCatalog = new ObservableCollection<AdObjectInfo>(_allResources);
 
+                // Получаем текущего пользователя
+                string userName = Environment.UserName; // или можно user.SamAccountName
+                var userGroups = _adHelper.GetUserGroups(userName)
+                    .Select(g => g.ToLowerInvariant())
+                    .ToList();
+
+                // Формируем список ресурсов с флагом доступа
                 SelectedRequestItems = new ObservableCollection<ResourceRequestItem>(
                     _allResources.Select(r => new ResourceRequestItem
                     {
                         Resource = r,
-                        IsRequested = false,
-                        CurrentHasAccess = false
+                        CurrentHasAccess = userGroups.Contains(r.Name.ToLowerInvariant()),
+                        IsRequested = userGroups.Contains(r.Name.ToLowerInvariant()) // чтобы сразу отметить чекбокс
                     })
                 );
 
@@ -193,19 +218,16 @@ namespace AccessManager.ViewModels
                 var computers = _adHelper.GetResources("computer");
                 AvailableWorkstations = new ObservableCollection<AdObjectInfo>(computers);
 
-                // Автоматически выбрать текущий ПК
                 string computerName = Environment.MachineName;
-                var workstation = AvailableWorkstations.FirstOrDefault(w =>
-                    w.Name.Equals(computerName, StringComparison.OrdinalIgnoreCase));
-
-                if (workstation != null)
-                    SelectedWorkstation = workstation;
+                SelectedWorkstation = AvailableWorkstations
+                    .FirstOrDefault(w => w.Name.Equals(computerName, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Ошибка при загрузке AD: " + ex.Message);
             }
         }
+
 
         // ================= Поиск по ресурсам =================
         private void ApplyResourceFilter()

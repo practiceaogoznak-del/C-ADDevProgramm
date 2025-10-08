@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.DirectoryServices;
 using AccessManager.Classes;
+using System.Windows;
+using System.DirectoryServices.AccountManagement;
 
 namespace AccessManager.Services
 {
@@ -16,6 +14,26 @@ namespace AccessManager.Services
         public ActiveDirectoryHelper(string ldapPath)
         {
             _ldapPath = ldapPath;
+        }
+
+        /// <summary>
+        /// Проверяет доступность LDAP соединения
+        /// </summary>
+        public bool IsConnected()
+        {
+            try
+            {
+                using (var entry = new DirectoryEntry(_ldapPath))
+                {
+                    var native = entry.NativeObject; // Пытаемся получить COM-объект
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LDAP недоступен: " + ex.Message);
+                return false;
+            }
         }
 
         /// <summary>
@@ -39,7 +57,8 @@ namespace AccessManager.Services
                         "displayName",
                         "mail",
                         "telephoneNumber",
-                        "employeeID"
+                        "employeeID",
+                        "distinguishedName"
                     });
                     searcher.SizeLimit = 500;
                     searcher.PageSize = 500;
@@ -63,7 +82,6 @@ namespace AccessManager.Services
             }
             catch (Exception ex)
             {
-                // Можно добавить логирование, чтобы не падало приложение
                 System.Diagnostics.Debug.WriteLine("Ошибка AD: " + ex.Message);
             }
 
@@ -75,6 +93,32 @@ namespace AccessManager.Services
             return result.Properties.Contains(prop)
                 ? result.Properties[prop][0]?.ToString()
                 : string.Empty;
+        }
+
+        public List<string> GetUserGroups(string userSamAccountName)
+        {
+            var userGroups = new List<string>();
+            try
+            {
+                using (var context = new PrincipalContext(ContextType.Domain))
+                using (var user = UserPrincipal.FindByIdentity(context, userSamAccountName))
+                {
+                    if (user != null)
+                    {
+                        var groups = user.GetGroups();
+                        foreach (var g in groups)
+                        {
+                            userGroups.Add(g.SamAccountName); // или g.Name
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Ошибка при получении групп пользователя: " + ex.Message);
+            }
+
+            return userGroups;
         }
     }
 }

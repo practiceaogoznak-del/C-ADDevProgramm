@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace AccessManager.ViewModels
 {
-    internal class ApprovalViewModel
+    class ApprovalViewModel
     {
     }
 }
