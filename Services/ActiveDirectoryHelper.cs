@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.DirectoryServices;
-using AccessManager.Classes;
-using System.Windows;
 using System.DirectoryServices.AccountManagement;
+using AccessManager.Classes;
 
 namespace AccessManager.Services
 {
@@ -16,85 +15,52 @@ namespace AccessManager.Services
             _ldapPath = ldapPath;
         }
 
-        /// <summary>
-        /// Проверяет доступность LDAP соединения
-        /// </summary>
         public bool IsConnected()
         {
             try
             {
                 using (var entry = new DirectoryEntry(_ldapPath))
                 {
-                    var native = entry.NativeObject; // Пытаемся получить COM-объект
+                    var _ = entry.NativeObject; // тест подключения
                     return true;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine("LDAP недоступен: " + ex.Message);
                 return false;
             }
         }
 
-        /// <summary>
-        /// Получает список объектов указанного типа (group, computer, user и т.п.)
-        /// </summary>
-        public List<AdObjectInfo> GetResources(string objectCategory)
+        // ======== Получение ресурсов (группы / компьютеры) ========
+        public List<AdObjectInfo> GetResources(string objectClass)
         {
-            var results = new List<AdObjectInfo>();
-
+            var list = new List<AdObjectInfo>();
             try
             {
-                using (var entry = new DirectoryEntry(_ldapPath))
-                using (var searcher = new DirectorySearcher(entry))
+                using (DirectoryEntry entry = new DirectoryEntry(_ldapPath))
+                using (DirectorySearcher searcher = new DirectorySearcher(entry))
                 {
-                    searcher.Filter = $"(objectCategory={objectCategory})";
-                    searcher.PropertiesToLoad.AddRange(new[]
-                    {
-                        "cn",
-                        "name",
-                        "description",
-                        "displayName",
-                        "mail",
-                        "telephoneNumber",
-                        "employeeID",
-                        "distinguishedName"
-                    });
-                    searcher.SizeLimit = 500;
-                    searcher.PageSize = 500;
+                    searcher.Filter = $"(objectClass={objectClass})";
+                    searcher.PropertiesToLoad.Add("name");
+                    searcher.PropertiesToLoad.Add("description");
 
                     foreach (SearchResult result in searcher.FindAll())
                     {
-                        var info = new AdObjectInfo
-                        {
-                            Name = GetProp(result, "name"),
-                            DisplayName = GetProp(result, "displayName"),
-                            Description = GetProp(result, "description"),
-                            Email = GetProp(result, "mail"),
-                            Telephone = GetProp(result, "telephoneNumber"),
-                            EmployeeId = GetProp(result, "employeeID"),
-                            DistinguishedName = GetProp(result, "distinguishedName")
-                        };
-
-                        results.Add(info);
+                        string name = result.Properties["name"].Count > 0 ? result.Properties["name"][0].ToString() : "";
+                        string desc = result.Properties["description"].Count > 0 ? result.Properties["description"][0].ToString() : "";
+                        list.Add(new AdObjectInfo { Name = name, Description = desc });
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("Ошибка AD: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Ошибка при получении ресурсов: " + ex.Message);
             }
 
-            return results;
+            return list;
         }
 
-        private string GetProp(SearchResult result, string prop)
-        {
-            return result.Properties.Contains(prop)
-                ? result.Properties[prop][0]?.ToString()
-                : string.Empty;
-        }
-
+        // ======== Группы, где состоит пользователь ========
         public List<string> GetUserGroups(string userSamAccountName)
         {
             var userGroups = new List<string>();
@@ -105,11 +71,8 @@ namespace AccessManager.Services
                 {
                     if (user != null)
                     {
-                        var groups = user.GetGroups();
-                        foreach (var g in groups)
-                        {
-                            userGroups.Add(g.SamAccountName); // или g.Name
-                        }
+                        foreach (var g in user.GetGroups())
+                            userGroups.Add(g.SamAccountName);
                     }
                 }
             }
@@ -117,8 +80,42 @@ namespace AccessManager.Services
             {
                 System.Diagnostics.Debug.WriteLine("Ошибка при получении групп пользователя: " + ex.Message);
             }
-
             return userGroups;
         }
+
+        // ======== Почта владельца (управляющего) группы ========
+        public string GetGroupOwnerEmail(string groupName)
+        {
+            try
+            {
+                using (DirectoryEntry entry = new DirectoryEntry(_ldapPath))
+                using (DirectorySearcher searcher = new DirectorySearcher(entry))
+                {
+                    searcher.Filter = $"(&(objectClass=group)(sAMAccountName={groupName}))";
+                    searcher.PropertiesToLoad.Add("managedBy");
+
+                    var result = searcher.FindOne();
+                    if (result != null && result.Properties["managedBy"].Count > 0)
+                    {
+                        string managedByDn = result.Properties["managedBy"][0].ToString();
+
+                        // Берём именно владельца, не группу!
+                        using (var ownerEntry = new DirectoryEntry("LDAP://" + managedByDn))
+                        {
+                            var mail = ownerEntry.Properties["mail"].Value?.ToString();
+                            return mail;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Ошибка при получении владельца группы: " + ex.Message);
+            }
+
+            return null;
+        }
     }
+
+  
 }
