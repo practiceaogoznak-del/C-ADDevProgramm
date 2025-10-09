@@ -73,10 +73,7 @@
 
                 <!-- Список всех ресурсов -->
                 <StackPanel Grid.Column="0">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                        <TextBox Text="{Binding ResourceSearchText}" Width="250" Margin="0,0,5,0"/>
-                        <Button Content="🔍 Поиск" Command="{Binding SearchResourcesCommand}" Width="100"/>
-                    </StackPanel>
+                   
                     <ListView ItemsSource="{Binding ResourceCatalog}" SelectedItem="{Binding SelectedResource}" Height="200">
                         <ListView.View>
                             <GridView>
@@ -89,17 +86,37 @@
 
                 <!-- Выбранные ресурсы -->
                 <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                        <TextBox Text="{Binding ResourceSearchText}" Width="250" Margin="0,0,5,0"/>
+                        <Button Content="🔍 Поиск" Command="{Binding SearchResourcesCommand}" Width="100"/>
+                    </StackPanel>
                     <TextBlock Text="Выбранные ресурсы:" FontWeight="SemiBold"/>
-                    <ListBox ItemsSource="{Binding SelectedRequestItems}" Height="200">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsRequested}" Content="{Binding Resource.Name}" Width="200"/>
-                                    <TextBlock Text="{Binding CurrentHasAccess, Converter={StaticResource BoolToHasAccessConverter}}" Margin="6,0,0,0"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <ListView ItemsSource="{Binding ResourceCatalog}"
+          SelectedItem="{Binding SelectedResource}"
+          Height="200">
+                        <ListView.Resources>
+                            <!-- Стиль для строк ListView -->
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="ToolTip" Value="Владелец указан"/>
+                                <Style.Triggers>
+                                    <!-- Если владельца нет — подсвечиваем красным -->
+                                    <DataTrigger Binding="{Binding HasOwner}" Value="False">
+                                        <Setter Property="Foreground" Value="Red"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="ToolTip" Value="⚠ Владелец не указан в AD"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.Resources>
+
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Имя" DisplayMemberBinding="{Binding Name}" Width="200"/>
+                                <GridViewColumn Header="Описание" DisplayMemberBinding="{Binding Description}" Width="300"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
                 </StackPanel>
             </Grid>
 

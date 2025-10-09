@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
@@ -16,8 +17,8 @@ namespace AccessManager.ViewModels
     {
         private readonly EmailService _emailService;
         private readonly ActiveDirectoryHelper _adHelper;
+        private readonly string _logFilePath;
 
-        // ================= Основные поля =================
         public string ApplicantFullName { get; set; }
         public string ApplicantTabNumber { get; set; }
         public string Position { get; set; }
@@ -27,27 +28,37 @@ namespace AccessManager.ViewModels
         public string SelectedActionType { get; set; }
         public string Reason { get; set; }
 
-        // ================= Коллекции =================
         public ObservableCollection<ResourceRequestItem> SelectedRequestItems { get; set; }
         public ObservableCollection<AdObjectInfo> ResourceCatalog { get; set; }
         public ObservableCollection<AdObjectInfo> AvailableWorkstations { get; set; }
 
         private ObservableCollection<AdObjectInfo> _allResources;
-
         public AdObjectInfo SelectedWorkstation { get; set; }
 
-        // ================= Флаги =================
         public bool IsTemporary { get; set; }
         public DateTime? TemporaryUntil { get; set; }
 
-        // ================= Команды =================
+        private string _resourceSearchText;
+        public string ResourceSearchText
+        {
+            get => _resourceSearchText;
+            set
+            {
+                _resourceSearchText = value;
+                OnPropertyChanged(nameof(ResourceSearchText));
+            }
+        }
+
         public ICommand SaveDraftCommand { get; }
         public ICommand SubmitCommand { get; }
+        public ICommand SearchResourcesCommand { get; }
 
         public RequestFormViewModel()
         {
+            _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AccessManager.log");
+
             string ldapPath = GetDefaultLdapPath();
-            _adHelper = new ActiveDirectoryHelper(ldapPath);
+            _adHelper = new ActiveDirectoryHelper(ldapPath, _logFilePath);
             _emailService = new EmailService();
 
             ActionTypes = new ObservableCollection<string> { "Добавить", "Удалить", "Изменить" };
@@ -70,6 +81,7 @@ namespace AccessManager.ViewModels
 
             SaveDraftCommand = new RelayCommand(_ => SaveDraft());
             SubmitCommand = new RelayCommand(_ => Submit());
+            SearchResourcesCommand = new RelayCommand(_ => SearchResources());
         }
 
         private string GetDefaultLdapPath()
@@ -90,6 +102,7 @@ namespace AccessManager.ViewModels
         {
             try
             {
+                Log("Загрузка данных из AD...");
                 var groups = _adHelper.GetResources("group");
                 _allResources = new ObservableCollection<AdObjectInfo>(groups);
                 ResourceCatalog = new ObservableCollection<AdObjectInfo>(_allResources);
@@ -114,10 +127,39 @@ namespace AccessManager.ViewModels
                 string computerName = Environment.MachineName;
                 SelectedWorkstation = AvailableWorkstations
                     .FirstOrDefault(w => w.Name.Equals(computerName, StringComparison.OrdinalIgnoreCase));
+
+                Log("Загрузка AD завершена.");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("Ошибка при загрузке AD: " + ex.Message);
+                Log("Ошибка при загрузке AD: " + ex.Message);
+            }
+        }
+
+        private void SearchResources()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(ResourceSearchText))
+                {
+                    ResourceCatalog = new ObservableCollection<AdObjectInfo>(_allResources);
+                }
+                else
+                {
+                    var filtered = _allResources
+                        .Where(r => r.Name.Contains(ResourceSearchText, StringComparison.OrdinalIgnoreCase) ||
+                                    (r.Description?.Contains(ResourceSearchText, StringComparison.OrdinalIgnoreCase) ?? false))
+                        .ToList();
+
+                    ResourceCatalog = new ObservableCollection<AdObjectInfo>(filtered);
+                }
+
+                OnPropertyChanged(nameof(ResourceCatalog));
+                Log($"Поиск ресурсов по запросу: \"{ResourceSearchText}\" — найдено {ResourceCatalog.Count}");
+            }
+            catch (Exception ex)
+            {
+                Log("Ошибка при поиске ресурсов: " + ex.Message);
             }
         }
 
@@ -134,8 +176,9 @@ namespace AccessManager.ViewModels
                     ApplicantTabNumber = user?.EmployeeId ?? "—";
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Log("Ошибка при загрузке данных пользователя: " + ex.Message);
                 ApplicantFullName = Environment.UserName;
             }
         }
@@ -188,44 +231,25 @@ namespace AccessManager.ViewModels
                     string.Join("\n", selectedResources);
 
                 string to = string.Join(";", ownersEmails.Distinct());
-                _emailService.SendOutlookEmail(to, subject, body);
+                _emailService.CreateOutlookEmail(to, subject, body);
 
-                MessageBox.Show($"Письмо успешно отправлено владельцам:\n{to}");
+                Log($"Формирование письма успешно: получатели — {to}");
+                MessageBox.Show($"Письмо успешно сформировано для владельцев:\n{to}");
             }
             catch (Exception ex)
             {
+                Log("Ошибка при отправке письма: " + ex.Message);
                 MessageBox.Show("Ошибка при отправке: " + ex.Message);
             }
+        }
+
+        private void Log(string message)
+        {
+            File.AppendAllText(_logFilePath, $"[{DateTime.Now}] {message}\n");
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
-    // ===== Класс элемента ресурса =====
-    public class ResourceRequestItem : INotifyPropertyChanged
-    {
-        public AdObjectInfo Resource { get; set; }
-
-        private bool _isRequested;
-        public bool IsRequested
-        {
-            get => _isRequested;
-            set { _isRequested = value; OnPropertyChanged(nameof(IsRequested)); }
-        }
-
-        private bool _currentHasAccess;
-        public bool CurrentHasAccess
-        {
-            get => _currentHasAccess;
-            set { _currentHasAccess = value; OnPropertyChanged(nameof(CurrentHasAccess)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
-        }
     }
 }

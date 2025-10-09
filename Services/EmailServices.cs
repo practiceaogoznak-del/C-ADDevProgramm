@@ -5,21 +5,25 @@ namespace AccessManager.Services
 {
     public class EmailService
     {
-        public void SendOutlookEmail(string to, string subject, string body)
+        public void CreateOutlookEmail(string to, string subject, string body)
         {
             try
             {
                 Application outlookApp = new Application();
                 MailItem mail = (MailItem)outlookApp.CreateItem(OlItemType.olMailItem);
+
                 mail.To = to;
                 mail.Subject = subject;
                 mail.Body = body;
-                mail.Send(); // сразу отправить
+
+                // ✅ Показываем окно письма пользователю
+                mail.Display(false);
             }
             catch (System.Exception ex)
             {
-                System.Windows.MessageBox.Show("Ошибка при отправке письма: " + ex.Message);
+                System.Windows.MessageBox.Show("Ошибка при создании письма: " + ex.Message);
             }
         }
     }
 }
+

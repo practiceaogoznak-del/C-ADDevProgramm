@@ -17,5 +17,7 @@ namespace AccessManager.Classes
         public string DistinguishedName { get; set; }
 
         public override string ToString() => DisplayName ?? Name;
+
+        public bool HasOwner { get; set; } = true;
     }
 }
