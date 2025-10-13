@@ -8,15 +8,12 @@
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="{StaticResource PrimaryColor}" Height="60">
             <TextBlock Text="Система управления доступами" FontSize="22" VerticalAlignment="Center" Margin="20,0,0,0" Foreground="Black"/>
         </StackPanel>
-
         <!-- Навигация слева -->
-        <StackPanel DockPanel.Dock="Left" Width="200" Background="#F0FFF0" Margin="0,0,2,0">
-            <Button Content="Форма заявки" Command="{Binding NavigateToRequestFormCommand}" Margin="10"/>
-            <Button Content="Согласование" Command="{Binding NavigateToApprovalViewCommand}" Margin="10"/>
-            <Button Content="Очередь ОИТ" Command="{Binding NavigateToOITQueueViewCommand}" Margin="10"/>
-            <TextBlock x:Name="aut" Text="" HorizontalAlignment="Center"  VerticalAlignment="Center"/>
+        <StackPanel DockPanel.Dock="Left" Width="200" Background="LightBlue" Margin="0,0,2,0">
+            <Button Content="Форма заявки" Click="OpenForm_Click" Margin="10"/>
+            <Button Content="Загрузить пользователей" Click="NavigateToAD_Click" Margin="10"/>
+            <TextBlock x:Name="aut" Text="" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </StackPanel>
-
         <!-- Основная область -->
         <Frame x:Name="MainFrame" NavigationUIVisibility="Hidden"/>
     </DockPanel>

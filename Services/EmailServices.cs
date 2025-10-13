@@ -1,5 +1,6 @@
-﻿using System;
-using Microsoft.Office.Interop.Outlook;
+﻿using Microsoft.Office.Interop.Outlook;
+using System;
+using System.Runtime.InteropServices;
 
 namespace AccessManager.Services
 {
@@ -9,21 +10,26 @@ namespace AccessManager.Services
         {
             try
             {
-                Application outlookApp = new Application();
-                MailItem mail = (MailItem)outlookApp.CreateItem(OlItemType.olMailItem);
+                Type outlookType = Type.GetTypeFromProgID("Outlook.Application");
+                if (outlookType == null)
+                    throw new InvalidOperationException("Outlook не установлен или недоступен.");
 
-                mail.To = to;
-                mail.Subject = subject;
-                mail.Body = body;
+                dynamic outlookApp = Activator.CreateInstance(outlookType);
+                dynamic mailItem = outlookApp.CreateItem(0); // 0 = olMailItem
 
-                // ✅ Показываем окно письма пользователю
-                mail.Display(false);
+                mailItem.To = to;
+                mailItem.Subject = subject;
+                mailItem.Body = body;
+                mailItem.Display(true); // false = не редактировать, true = открыть для пользователя
+
+                Marshal.ReleaseComObject(mailItem);
+                Marshal.ReleaseComObject(outlookApp);
             }
             catch (System.Exception ex)
             {
-                System.Windows.MessageBox.Show("Ошибка при создании письма: " + ex.Message);
+                throw new System.Exception($"Ошибка при создании письма Outlook: {ex.Message}", ex);
             }
         }
     }
-}
+ }
 

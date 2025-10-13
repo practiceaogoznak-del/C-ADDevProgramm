@@ -22,13 +22,23 @@ namespace AccessManager
         public MainWindow()
         {
             InitializeComponent();
-
+            Authorization();
             openForm();
-
         }
+
         public void openForm()
         {
             MainFrame.Navigate(new Views.RequestFormVIew());
+        }
+
+        private void OpenForm_Click(object sender, RoutedEventArgs e)
+        {
+            openForm();
+        }
+
+        private void NavigateToAD_Click(object sender, RoutedEventArgs e)
+        {
+            MainFrame.Navigate(new Views.AD());
         }
 
         public void Authorization()
